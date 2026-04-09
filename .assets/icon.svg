@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4aa"/>
+      <stop offset="100%" stop-color="#00b4d8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+
+  <!-- Tag shape -->
+  <g transform="translate(128,128)">
+    <!-- Tag body -->
+    <rect x="-68" y="-48" width="136" height="96" rx="12" fill="none" stroke="url(#accent)" stroke-width="6"/>
+
+    <!-- Tag hole -->
+    <circle cx="-44" cy="-20" r="8" fill="none" stroke="url(#accent)" stroke-width="4"/>
+
+    <!-- UUID text lines -->
+    <text x="0" y="8" text-anchor="middle" font-family="monospace" font-size="18" font-weight="bold" fill="#00d4aa" letter-spacing="1">
+      a3f8-4b2c
+    </text>
+    <text x="0" y="30" text-anchor="middle" font-family="monospace" font-size="12" fill="#00d4aa" opacity="0.5" letter-spacing="1">
+      REQUEST-ID
+    </text>
+  </g>
+
+  <!-- Corner dots (network/routing motif) -->
+  <circle cx="32" cy="32" r="4" fill="#00d4aa" opacity="0.3"/>
+  <circle cx="224" cy="32" r="4" fill="#00d4aa" opacity="0.3"/>
+  <circle cx="32" cy="224" r="4" fill="#00d4aa" opacity="0.3"/>
+  <circle cx="224" cy="224" r="4" fill="#00d4aa" opacity="0.3"/>
+</svg>
