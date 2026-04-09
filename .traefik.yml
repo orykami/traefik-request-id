@@ -1,6 +1,8 @@
 displayName: Request ID
 type: middleware
 import: github.com/orykami/traefik-request-id
-summary: Generates a unique X-Request-ID header (UUID v4) for each incoming request if not already present.
+summary: Generates a unique X-Request-ID header (UUID v4) for each incoming request.
+iconPath: .assets/icon.png
+bannerPath: .assets/banner.png
 testData:
   headerName: X-Request-ID
