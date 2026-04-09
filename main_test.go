@@ -11,7 +11,7 @@ import (
 var uuidV4Re = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 func TestNewUUID_Format(t *testing.T) {
-	for range 100 {
+	for i := 0; i < 100; i++ {
 		id := newUUID()
 		if !uuidV4Re.MatchString(id) {
 			t.Fatalf("invalid UUID v4: %s", id)
@@ -22,7 +22,7 @@ func TestNewUUID_Format(t *testing.T) {
 func TestNewUUID_Uniqueness(t *testing.T) {
 	seen := make(map[string]struct{}, 1000)
 
-	for range 1000 {
+	for i := 0; i < 1000; i++ {
 		id := newUUID()
 		if _, ok := seen[id]; ok {
 			t.Fatalf("duplicate UUID: %s", id)
@@ -98,7 +98,7 @@ func TestServeHTTP_UniquePerRequest(t *testing.T) {
 
 	seen := make(map[string]struct{}, 100)
 
-	for range 100 {
+	for i := 0; i < 100; i++ {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 
@@ -165,7 +165,7 @@ func TestHexEncode(t *testing.T) {
 
 func BenchmarkNewUUID(b *testing.B) {
 	b.ReportAllocs()
-	for range b.N {
+	for i := 0; i < b.N; i++ {
 		newUUID()
 	}
 }
@@ -178,7 +178,7 @@ func BenchmarkServeHTTP(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for range b.N {
+	for i := 0; i < b.N; i++ {
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 	}

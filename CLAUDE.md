@@ -27,7 +27,7 @@ Single-file plugin (`main.go`) in package `traefik_request_id`. No subdirectorie
 
 - **Plugin entry points**: `CreateConfig()` and `New()` — required by Traefik's plugin interface.
 - **UUID generation**: `newUUID()` produces RFC 4122 v4 UUIDs using `crypto/rand` with a custom `hexEncode` helper (no `fmt` or `encoding/hex` dependency).
-- **Go version**: 1.24 (uses range-over-int syntax in tests).
+- **Go version**: 1.22 — must stay aligned with what Yaegi (embedded in Traefik) supports. Avoid Go features newer than this version.
 
 ## Constraints
 
