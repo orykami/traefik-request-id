@@ -47,7 +47,7 @@ Enable the middleware on a router:
 http:
   routers:
     my-router:
-      rule: host(`example.localhost`)
+      rule: Host(`example.localhost`)
       service: my-service
       entryPoints:
         - web
