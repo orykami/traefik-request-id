@@ -20,9 +20,10 @@
 ## Features
 
 - Generates a **UUID v4** (RFC 4122) for each request
-- Sets the ID on both the **request** (forwarded to backends) and the **response**
+- Sets the ID on the **request** (forwarded to backends) and optionally on the **response**
+- Preserves a valid UUID v4 already present in the incoming request
+- Overrides invalid or non-UUID client-provided values
 - Configurable header name (defaults to `X-Request-ID`)
-- Always overrides client-provided values
 - Zero external dependencies — uses only Go stdlib
 
 ## Configuration
@@ -59,13 +60,15 @@ http:
       plugin:
         request-id:
           headerName: X-Request-ID
+          setResponseHeader: true
 ```
 
 ### Options
 
-| Option       | Type   | Default        | Description               |
-|--------------|--------|----------------|---------------------------|
-| `headerName` | string | `X-Request-ID` | Name of the header to set |
+| Option              | Type   | Default        | Description                                      |
+|---------------------|--------|----------------|--------------------------------------------------|
+| `headerName`        | string | `X-Request-ID` | Name of the header to set                        |
+| `setResponseHeader` | bool   | `true`         | Whether to include the ID in the response header |
 
 ## Local Development
 
