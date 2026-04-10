@@ -6,3 +6,4 @@ iconPath: .assets/icon.png
 bannerPath: .assets/banner.png
 testData:
   headerName: X-Request-ID
+  setResponseHeader: true

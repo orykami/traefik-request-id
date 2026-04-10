@@ -10,19 +10,22 @@ const defaultHeaderName = "X-Request-ID"
 
 // Config holds the plugin configuration.
 type Config struct {
-	HeaderName string `json:"headerName,omitempty"`
+	HeaderName        string `json:"headerName,omitempty"`
+	SetResponseHeader bool   `json:"setResponseHeader,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
-		HeaderName: defaultHeaderName,
+		HeaderName:        defaultHeaderName,
+		SetResponseHeader: true,
 	}
 }
 
 type requestID struct {
-	next       http.Handler
-	headerName string
+	next              http.Handler
+	headerName        string
+	setResponseHeader bool
 }
 
 // New creates a new plugin instance.
@@ -33,20 +36,28 @@ func New(_ context.Context, next http.Handler, config *Config, _ string) (http.H
 	}
 
 	return &requestID{
-		next:       next,
-		headerName: headerName,
+		next:              next,
+		headerName:        headerName,
+		setResponseHeader: config.SetResponseHeader,
 	}, nil
 }
 
 func (r *requestID) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	id := newUUID()
+	id := req.Header.Get(r.headerName)
+	if !isValidUUIDv4(id) {
+		id = newUUID()
+	}
 
 	req.Header.Set(r.headerName, id)
 
 	r.next.ServeHTTP(rw, req)
 
-	rw.Header().Set(r.headerName, id)
+	if r.setResponseHeader {
+		rw.Header().Set(r.headerName, id)
+	}
 }
+
+// --- UUID utilities ---
 
 const hexTable = "0123456789abcdef"
 
@@ -54,7 +65,7 @@ const hexTable = "0123456789abcdef"
 func newUUID() string {
 	var b [16]byte
 
-	rand.Read(b[:])
+	_, _ = rand.Read(b[:])
 
 	b[6] = (b[6] & 0x0f) | 0x40 // version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
@@ -78,4 +89,33 @@ func hexEncode(dst []byte, src []byte) {
 		dst[i*2] = hexTable[v>>4]
 		dst[i*2+1] = hexTable[v&0x0f]
 	}
+}
+
+// isValidUUIDv4 checks UUID v4 format without allocations or regex.
+func isValidUUIDv4(s string) bool {
+	if len(s) != 36 {
+		return false
+	}
+	if s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-' {
+		return false
+	}
+	if s[14] != '4' {
+		return false
+	}
+	switch s[19] {
+	case '8', '9', 'a', 'b', 'A', 'B':
+	default:
+		return false
+	}
+	return isHex(s[0:8]) && isHex(s[9:13]) && isHex(s[14:18]) && isHex(s[19:23]) && isHex(s[24:36])
+}
+
+func isHex(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F') {
+			return false
+		}
+	}
+	return true
 }

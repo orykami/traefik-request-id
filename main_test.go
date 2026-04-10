@@ -88,6 +88,57 @@ func TestServeHTTP_OverridesClientID(t *testing.T) {
 	}
 }
 
+func TestServeHTTP_PreservesValidClientUUID(t *testing.T) {
+	clientID := "550e8400-e29b-41d4-a716-446655440000"
+	var capturedHeader string
+
+	next := http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		capturedHeader = req.Header.Get("X-Request-ID")
+	})
+
+	handler, err := New(context.Background(), next, CreateConfig(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", clientID)
+
+	handler.ServeHTTP(rec, req)
+
+	if capturedHeader != clientID {
+		t.Fatalf("expected client ID %q to be preserved, got %q", clientID, capturedHeader)
+	}
+	if rec.Header().Get("X-Request-ID") != clientID {
+		t.Fatalf("response header should match client ID")
+	}
+}
+
+func TestServeHTTP_PreservesUppercaseClientUUID(t *testing.T) {
+	clientID := "550E8400-E29B-41D4-A716-446655440000"
+	var capturedHeader string
+
+	next := http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		capturedHeader = req.Header.Get("X-Request-ID")
+	})
+
+	handler, err := New(context.Background(), next, CreateConfig(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", clientID)
+
+	handler.ServeHTTP(rec, req)
+
+	if capturedHeader != clientID {
+		t.Fatalf("expected uppercase UUID %q to be preserved, got %q", clientID, capturedHeader)
+	}
+}
+
 func TestServeHTTP_OverridesBackendID(t *testing.T) {
 	var capturedHeader string
 
@@ -137,7 +188,7 @@ func TestServeHTTP_UniquePerRequest(t *testing.T) {
 }
 
 func TestServeHTTP_CustomHeaderName(t *testing.T) {
-	cfg := &Config{HeaderName: "X-Correlation-ID"}
+	cfg := &Config{HeaderName: "X-Correlation-ID", SetResponseHeader: true}
 	var capturedHeader string
 
 	next := http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
@@ -163,6 +214,32 @@ func TestServeHTTP_CustomHeaderName(t *testing.T) {
 	}
 }
 
+func TestServeHTTP_NoResponseHeader(t *testing.T) {
+	var capturedHeader string
+
+	next := http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		capturedHeader = req.Header.Get("X-Request-ID")
+	})
+
+	cfg := &Config{SetResponseHeader: false}
+	handler, err := New(context.Background(), next, cfg, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	handler.ServeHTTP(rec, req)
+
+	if !uuidV4Re.MatchString(capturedHeader) {
+		t.Fatalf("expected UUID v4 on request, got: %q", capturedHeader)
+	}
+	if resp := rec.Header().Get("X-Request-ID"); resp != "" {
+		t.Fatalf("expected no response header, got: %q", resp)
+	}
+}
+
 func TestNew_DefaultsEmptyHeaderName(t *testing.T) {
 	cfg := &Config{HeaderName: ""}
 
@@ -174,6 +251,33 @@ func TestNew_DefaultsEmptyHeaderName(t *testing.T) {
 	rid := handler.(*requestID)
 	if rid.headerName != defaultHeaderName {
 		t.Fatalf("expected %q, got %q", defaultHeaderName, rid.headerName)
+	}
+}
+
+func TestIsValidUUIDv4(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{"valid lowercase", "550e8400-e29b-41d4-a716-446655440000", true},
+		{"valid uppercase", "550E8400-E29B-41D4-A716-446655440000", true},
+		{"valid mixed case", "550e8400-E29B-41d4-a716-446655440000", true},
+		{"generated", newUUID(), true},
+		{"empty", "", false},
+		{"too short", "550e8400-e29b-41d4-a716", false},
+		{"no dashes", "550e8400e29b41d4a716446655440000", false},
+		{"wrong version", "550e8400-e29b-31d4-a716-446655440000", false},
+		{"wrong variant", "550e8400-e29b-41d4-0716-446655440000", false},
+		{"non hex char", "550g8400-e29b-41d4-a716-446655440000", false},
+		{"spaces", "550e8400-e29b-41d4-a716-44665544000 ", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isValidUUIDv4(tt.input); got != tt.want {
+				t.Errorf("isValidUUIDv4(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -194,9 +298,48 @@ func BenchmarkNewUUID(b *testing.B) {
 	}
 }
 
+func BenchmarkIsValidUUIDv4(b *testing.B) {
+	id := newUUID()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		isValidUUIDv4(id)
+	}
+}
+
 func BenchmarkServeHTTP(b *testing.B) {
 	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 	handler, _ := New(context.Background(), next, CreateConfig(), "bench")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+	}
+}
+
+func BenchmarkServeHTTP_ExistingValidUUID(b *testing.B) {
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	handler, _ := New(context.Background(), next, CreateConfig(), "bench")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", "550e8400-e29b-41d4-a716-446655440000")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+	}
+}
+
+func BenchmarkServeHTTP_NoResponseHeader(b *testing.B) {
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	cfg := &Config{SetResponseHeader: false}
+	handler, _ := New(context.Background(), next, cfg, "bench")
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 
 	b.ReportAllocs()
