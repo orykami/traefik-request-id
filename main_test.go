@@ -88,6 +88,30 @@ func TestServeHTTP_OverridesClientID(t *testing.T) {
 	}
 }
 
+func TestServeHTTP_OverridesBackendID(t *testing.T) {
+	var capturedHeader string
+
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		capturedHeader = req.Header.Get("X-Request-ID")
+		rw.Header().Set("X-Request-ID", "backend-id")
+	})
+
+	handler, err := New(context.Background(), next, CreateConfig(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	handler.ServeHTTP(rec, req)
+
+	resp := rec.Header().Get("X-Request-ID")
+	if resp != capturedHeader {
+		t.Fatalf("response header %q should match generated ID %q, not backend value", resp, capturedHeader)
+	}
+}
+
 func TestServeHTTP_UniquePerRequest(t *testing.T) {
 	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
 

@@ -42,9 +42,10 @@ func (r *requestID) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	id := newUUID()
 
 	req.Header.Set(r.headerName, id)
-	rw.Header().Set(r.headerName, id)
 
 	r.next.ServeHTTP(rw, req)
+
+	rw.Header().Set(r.headerName, id)
 }
 
 const hexTable = "0123456789abcdef"
